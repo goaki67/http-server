@@ -1,4 +1,4 @@
-APP      := myapp
+APP      := server
 CC       ?= gcc
 BUILD    ?= debug
 
