@@ -1,0 +1,45 @@
+---
+Language: Cpp
+Standard: c23
+BasedOnStyle: LLVM
+
+# --- Indentation ---
+# Use Tabs for indentation, width 4
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
+# Continuation indent (for wrapped lines)
+ContinuationIndentWidth: 4
+
+# --- Layout & Braces ---
+# Attach braces to the statement (K&R / Java style)
+BreakBeforeBraces: Attach
+
+# --- Pointers ---
+# int *ptr (Right alignment)
+PointerAlignment: Right
+
+# --- Line Length ---
+ColumnLimit: 100
+
+# --- Includes ---
+SortIncludes: true
+IncludeBlocks: Regroup
+
+# --- Alignment ---
+# Aligns values in columns
+AlignConsecutiveAssignments: true
+AlignConsecutiveMacros: true
+# We typically keep declarations unaligned to avoid massive diffs when adding long types
+AlignConsecutiveDeclarations: false
+
+# --- Arguments ---
+# Pack arguments onto one line if they fit
+BinPackArguments: true
+BinPackParameters: true
+
+# --- Extras ---
+# Security: Keep strings intact for grep
+BreakStringLiterals: false
+# Gap Preservation: Allows you to keep 1 empty line between headers and main
+MaxEmptyLinesToKeep: 1

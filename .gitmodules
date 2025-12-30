@@ -1,0 +1,6 @@
+[submodule "lib/log"]
+	path = lib/log
+	url = https://github.com/rxi/log.c.git
+[submodule "lib/unity"]
+	path = lib/unity
+	url = https://github.com/ThrowTheSwitch/Unity.git

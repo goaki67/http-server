@@ -1,0 +1,3 @@
+---
+Checks: '-*,bugprone-*,cert-*,clang-analyzer-*,readability-*,performance-*,portability-*,bugprone-unused-return-value,clang-analyzer-security.insecureAPI.vfork,readability-const-return-type'
+HeaderFilterRegex: '^(include|src)/.*'

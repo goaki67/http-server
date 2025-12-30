@@ -1,0 +1,7 @@
+build/
+bin/
+obj/
+*.d
+*.o
+.vscode/
+compile_commands.json
