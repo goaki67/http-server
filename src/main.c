@@ -1,9 +1,11 @@
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "constants.h"
+#include "file.h"
 #include "log.h"
 #include "socket.h"
 
@@ -15,7 +17,6 @@ int main(int argc, char *argv[]) {
 
   uint16_t port_number = (uint16_t)atoi(argv[1]);
   int sockfd = open_socket(port_number);
-  const char *message = "HTTP/1.0 200 OK\n\n<h1>Hello World</h1>";
   char buffer[BUFFER_SIZE] = {0};
 
   while (true) {
@@ -27,7 +28,14 @@ int main(int argc, char *argv[]) {
     printf("\nMessage recived: \"\n%s\n\"\n", buffer);
 
     // return the message to the client
+    char *file = get_file_contents("html/index.html");
+    char *header = "HTTP/1.0 200 OK\n\n";
+    char *message = malloc(strlen(header) + strlen(file) + 1);
+    message[strlen(header) + strlen(file)] = 0;
+    (void)snprintf(message, strlen(header) + strlen(file) + 1, "%s%s", header,
+                   file);
     (void)write(client, message, strlen(message));
+    free(message);
     close(client);
   }
 
