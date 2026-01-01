@@ -1,183 +1,178 @@
 #include "file.h"
 #include "unity.h"
+#include <errno.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
-// Include unistd.h for symlink() on POSIX systems (Linux/macOS)
-#if defined(__linux__) || defined(__APPLE__) || defined(__unix__)
 #include <unistd.h>
-#define IS_POSIX 1
-#endif
 
 /* --- Constants --- */
-#define TEMP_FILE_PATH "test_temp_file.txt"
-#define TEMP_LINK_PATH "test_symlink.txt"
-#define NON_EXISTENT_FILE "this_file_does_not_exist.txt"
+#define TEMP_FILE_PATH "test_linux_data.bin"
+#define TEMP_LINK_PATH "test_linux_link.bin"
+#define TEMP_DIR_PATH "test_linux_dir"
+#define NON_EXISTENT_FILE "ghost_file.bin"
 
 /* --- Helper Functions --- */
 
-void create_temp_file(const char *content) {
-  FILE *fp = fopen(TEMP_FILE_PATH, "w");
+void create_test_file(const void *content, size_t size) {
+  FILE *fp = fopen(TEMP_FILE_PATH, "wb");
   if (fp) {
-    if (content) {
-      fputs(content, fp);
+    if (size > 0 && content != NULL) {
+      fwrite(content, 1, size, fp);
     }
     fclose(fp);
   }
 }
 
-void create_binary_temp_file(const char *data, size_t len) {
-  FILE *fp = fopen(TEMP_FILE_PATH, "wb");
-  if (fp) {
-    fwrite(data, 1, len, fp);
-    fclose(fp);
-  }
+void cleanup_artifacts() {
+  unlink(TEMP_FILE_PATH);
+  unlink(TEMP_LINK_PATH);
+  rmdir(TEMP_DIR_PATH); // Only works if empty, which is fine
 }
 
-void remove_artifacts() {
-  remove(TEMP_FILE_PATH);
-  remove(TEMP_LINK_PATH); // Clean up symlink if it exists
+/* --- Unity Setup/Teardown --- */
+
+void setUp(void) { cleanup_artifacts(); }
+
+void tearDown(void) { cleanup_artifacts(); }
+
+/* --- Tests --- */
+
+// 1. Happy Path: Binary Content
+// Linux handles binary files and text files identically, but we test
+// strict byte content to ensure no newline conversions happen.
+void test_GetFileContents_Should_ReadBinaryFileExact(void) {
+  uint8_t binary_data[] = {0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0xFF};
+  size_t len = sizeof(binary_data);
+  create_test_file(binary_data, len);
+
+  file_t result = get_file_contents(TEMP_FILE_PATH);
+
+  TEST_ASSERT_NOT_NULL(result.data);
+  TEST_ASSERT_EQUAL_UINT64(len, result.length);
+  TEST_ASSERT_EQUAL_MEMORY(binary_data, result.data, len);
+
+  free(result.data);
 }
 
-/* --- Unity Setup and Teardown --- */
+// 2. Edge Case: Empty File
+// On Linux, creating a file with `touch` results in 0 bytes.
+void test_GetFileContents_Should_HandleEmptyFile(void) {
+  create_test_file("", 0); // Effectively a `touch`
 
-void setUp(void) { remove_artifacts(); }
+  file_t result = get_file_contents(TEMP_FILE_PATH);
 
-void tearDown(void) { remove_artifacts(); }
-
-/* --- Standard Tests --- */
-
-void test_GetFileContents_Should_ReturnContents_When_FileExists(void) {
-  const char *expected_content = "Hello, Unity!";
-  create_temp_file(expected_content);
-
-  char *actual_content = get_file_contents(TEMP_FILE_PATH);
-
-  TEST_ASSERT_NOT_NULL(actual_content);
-  TEST_ASSERT_EQUAL_STRING(expected_content, actual_content);
-  free(actual_content);
+  TEST_ASSERT_EQUAL_UINT64(0, result.length);
+  // Implementation choice: return NULL or malloc(0).
+  // Usually NULL is preferred for 0 length to avoid malloc overhead.
+  if (result.data)
+    free(result.data);
 }
 
-void test_GetFileContents_Should_ReturnEmptyString_When_FileIsEmpty(void) {
-  create_temp_file("");
-  char *actual_content = get_file_contents(TEMP_FILE_PATH);
-
-  TEST_ASSERT_NOT_NULL(actual_content);
-  TEST_ASSERT_EQUAL_STRING("", actual_content);
-  free(actual_content);
+// 3. Error Case: File Missing
+void test_GetFileContents_Should_ReturnZero_When_FileDoesNotExist(void) {
+  file_t result = get_file_contents(NON_EXISTENT_FILE);
+  TEST_ASSERT_NULL(result.data);
+  TEST_ASSERT_EQUAL_UINT64(0, result.length);
 }
 
-void test_GetFileContents_Should_ReturnNull_When_FileDoesNotExist(void) {
-  remove(NON_EXISTENT_FILE); // Paranoia
-  char *actual_content = get_file_contents(NON_EXISTENT_FILE);
-  TEST_ASSERT_NULL_MESSAGE(actual_content,
-                           "Should return NULL for missing file");
+// 4. Linux Specific: Directory Handling
+// Opening a directory with `fopen` on Linux might succeed, but `fread` will
+// fail or behave unexpectedly. The function should define check `S_ISDIR`.
+void test_GetFileContents_Should_Fail_When_PathIsDirectory(void) {
+  mkdir(TEMP_DIR_PATH, 0777);
+
+  file_t result = get_file_contents(TEMP_DIR_PATH);
+
+  TEST_ASSERT_NULL_MESSAGE(result.data,
+                           "Should fail (return NULL) if path is a directory");
+  TEST_ASSERT_EQUAL_UINT64(0, result.length);
 }
 
-// 1. Input Validation: NULL Path
-void test_GetFileContents_Should_ReturnNull_When_InputPathIsNull(void) {
-  char *actual_content = get_file_contents(NULL);
-  TEST_ASSERT_NULL_MESSAGE(actual_content,
-                           "Should return NULL safely for NULL input");
-}
-
-// 2. Input Validation: Path is a Directory
-// The function should detect that this is a folder, not a file, and fail
-// gracefully.
-void test_GetFileContents_Should_ReturnNull_When_PathIsDirectory(void) {
-  // We use the current directory "."
-  char *actual_content = get_file_contents(".");
-  TEST_ASSERT_NULL_MESSAGE(actual_content,
-                           "Should return NULL if path is a directory");
-}
-
-// 3. Binary Files: Embedded Nulls
-// Ensures the function reads the WHOLE file, even if a null byte is in the
-// middle.
-void test_GetFileContents_Should_ReadFullContent_EvenWithEmbeddedNulls(void) {
-  // Data: "A" + \0 + "B"
-  char binary_data[] = {'A', '\0', 'B'};
-  create_binary_temp_file(binary_data, 3);
-
-  char *actual_content = get_file_contents(TEMP_FILE_PATH);
-
-  TEST_ASSERT_NOT_NULL(actual_content);
-
-  // Validate first char
-  TEST_ASSERT_EQUAL_CHAR('A', actual_content[0]);
-  // Validate the null byte is actually there in memory
-  TEST_ASSERT_EQUAL_CHAR('\0', actual_content[1]);
-  // Validate the char AFTER the null byte is loaded
-  TEST_ASSERT_EQUAL_CHAR('B', actual_content[2]);
-
-  // Optional: Ensure the buffer is explicitly null-terminated at the END as
-  // well logic: 3 bytes read -> index 3 should be \0
-  TEST_ASSERT_EQUAL_CHAR('\0', actual_content[3]);
-
-  free(actual_content);
-}
-
-// 4. Permission Denied (POSIX specific)
-#ifdef IS_POSIX
-void test_GetFileContents_Should_ReturnNull_When_PermissionDenied(void) {
-  if (getuid() == 0) {
-    TEST_IGNORE_MESSAGE(
-        "Skipping permission test: Running as root ignores permissions");
-  }
-
-  create_temp_file("Secret");
-  chmod(TEMP_FILE_PATH, 0000); // Remove all permissions
-
-  char *actual_content = get_file_contents(TEMP_FILE_PATH);
-
-  TEST_ASSERT_NULL_MESSAGE(actual_content,
-                           "Should return NULL when unreadable");
-
-  chmod(TEMP_FILE_PATH, 0777); // Restore so tearDown can delete it
-}
-#endif
-
-// 5. Symbolic Links (POSIX specific)
-#ifdef IS_POSIX
+// 5. Linux Specific: Symlinks
+// The function should resolve the link to the actual file.
 void test_GetFileContents_Should_FollowSymlinks(void) {
-  const char *content = "Linked Content";
-  create_temp_file(content);
+  const char *content = "Symlink Target";
+  create_test_file(content, strlen(content));
 
-  // Create symlink: TEMP_LINK_PATH points to TEMP_FILE_PATH
-  if (symlink(TEMP_FILE_PATH, TEMP_LINK_PATH) != 0) {
-    TEST_FAIL_MESSAGE("Failed to create symlink for test setup");
+  // Create symlink: link -> target
+  symlink(TEMP_FILE_PATH, TEMP_LINK_PATH);
+
+  file_t result = get_file_contents(TEMP_LINK_PATH);
+
+  TEST_ASSERT_NOT_NULL(result.data);
+  TEST_ASSERT_EQUAL_UINT64(strlen(content), result.length);
+  TEST_ASSERT_EQUAL_MEMORY(content, result.data, result.length);
+
+  free(result.data);
+}
+
+// 6. Linux Specific: Broken Symlink
+// A link pointing to a non-existent file. Should fail like a missing file.
+void test_GetFileContents_Should_Fail_When_SymlinkIsBroken(void) {
+  symlink("non_existent_target.bin", TEMP_LINK_PATH);
+
+  file_t result = get_file_contents(TEMP_LINK_PATH);
+
+  TEST_ASSERT_NULL(result.data);
+  TEST_ASSERT_EQUAL_UINT64(0, result.length);
+}
+
+// 7. Linux Specific: Permissions
+// Ensure we handle EACCES (Permission Denied).
+void test_GetFileContents_Should_Fail_When_PermissionDenied(void) {
+  // Root bypasses permissions on Linux
+  if (getuid() == 0) {
+    TEST_IGNORE_MESSAGE("Skipping permission test: Running as root");
   }
 
-  char *actual_content = get_file_contents(TEMP_LINK_PATH);
+  create_test_file("Secret", 6);
+  chmod(TEMP_FILE_PATH, 0000); // chmod 000
 
-  TEST_ASSERT_NOT_NULL(actual_content);
-  TEST_ASSERT_EQUAL_STRING(content, actual_content);
+  file_t result = get_file_contents(TEMP_FILE_PATH);
 
-  free(actual_content);
+  TEST_ASSERT_NULL_MESSAGE(result.data,
+                           "Should return NULL when permission is denied");
+
+  chmod(TEMP_FILE_PATH, 0777); // Restore for cleanup
 }
-#endif
+
+// 8. Linux Specific: Character Devices (/dev/null)
+// /dev/null is readable but has 0 size.
+void test_GetFileContents_Should_HandleDevNull(void) {
+  file_t result = get_file_contents("/dev/null");
+
+  TEST_ASSERT_EQUAL_UINT64(0, result.length);
+  if (result.data)
+    free(result.data);
+}
+
+// 9. Input Validation: NULL inputs
+void test_GetFileContents_Should_SafeGuardAgainstNullPath(void) {
+  file_t result = get_file_contents(NULL);
+  TEST_ASSERT_NULL(result.data);
+  TEST_ASSERT_EQUAL_UINT64(0, result.length);
+}
 
 /* --- Main Runner --- */
 
 int main(void) {
   UNITY_BEGIN();
 
-  RUN_TEST(test_GetFileContents_Should_ReturnContents_When_FileExists);
-  RUN_TEST(test_GetFileContents_Should_ReturnEmptyString_When_FileIsEmpty);
-  RUN_TEST(test_GetFileContents_Should_ReturnNull_When_FileDoesNotExist);
+  RUN_TEST(test_GetFileContents_Should_ReadBinaryFileExact);
+  RUN_TEST(test_GetFileContents_Should_HandleEmptyFile);
+  RUN_TEST(test_GetFileContents_Should_ReturnZero_When_FileDoesNotExist);
+  RUN_TEST(test_GetFileContents_Should_SafeGuardAgainstNullPath);
 
-  // New Tests
-  RUN_TEST(test_GetFileContents_Should_ReturnNull_When_InputPathIsNull);
-  RUN_TEST(test_GetFileContents_Should_ReturnNull_When_PathIsDirectory);
-  RUN_TEST(test_GetFileContents_Should_ReadFullContent_EvenWithEmbeddedNulls);
-
-#ifdef IS_POSIX
-  RUN_TEST(test_GetFileContents_Should_ReturnNull_When_PermissionDenied);
+  // Linux Specific Scenarios
+  RUN_TEST(test_GetFileContents_Should_Fail_When_PathIsDirectory);
   RUN_TEST(test_GetFileContents_Should_FollowSymlinks);
-#endif
+  RUN_TEST(test_GetFileContents_Should_Fail_When_SymlinkIsBroken);
+  RUN_TEST(test_GetFileContents_Should_Fail_When_PermissionDenied);
+  RUN_TEST(test_GetFileContents_Should_HandleDevNull);
 
   return UNITY_END();
 }
