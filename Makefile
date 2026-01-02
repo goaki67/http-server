@@ -3,7 +3,7 @@ CC       ?= gcc
 BUILD    ?= debug
 
 # Standard & Includes
-STD      := -std=c23 -D_POSIX_C_SOURCE=200809L
+STD      := -std=c23 -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE
 INC      := -Iinclude -Isrc -Ilib/log/src -Ilib/unity/src
 
 # Paranoid Warnings
@@ -38,7 +38,7 @@ TEST_BIN := $(TEST_SRC:%.c=$(OUT)/%.bin)
 
 DEPS     := $(LOG_OBJ:.o=.d) $(UNITY_OBJ:.o=.d) $(CORE_OBJ:.o=.d) $(MAIN_OBJ:.o=.d) $(TEST_BIN:.bin=.d)
 
-.PHONY: all clean test
+.PHONY: all clean test db
 
 all: $(OUT)/$(APP)
 
@@ -65,5 +65,12 @@ test: $(TEST_BIN)
 
 clean:
 	@rm -rf build
+
+# Generate Compilation Database for Clang-Tidy / LSP
+# Requires: 'bear' package installed (apt/dnf/brew install bear)
+db: clean
+	@echo "  [BEAR] Generating compile_commands.json..."
+	@bear -- $(MAKE) all
+	@echo "  [BEAR] Done. You can now run clang-tidy."
 
 -include $(DEPS)

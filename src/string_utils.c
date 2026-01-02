@@ -64,3 +64,19 @@ char *get_line(char **tokens, size_t index) {
   }
   return nullptr;
 }
+
+[[nodiscard]]
+bool str_starts_with(const char *str, const char *prefix) {
+  if (str == nullptr || prefix == nullptr) {
+    return false;
+  }
+
+  size_t prefix_len = strlen(prefix);
+  size_t str_len = strlen(str);
+
+  if (prefix_len > str_len) {
+    return false;
+  }
+
+  return strncmp(str, prefix, prefix_len) == 0;
+}

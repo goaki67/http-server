@@ -12,4 +12,7 @@ typedef struct file_t {
 [[nodiscard]]
 file_t get_file_contents(const char *file_path);
 
+[[nodiscard]]
+char *get_safe_path(char *root_path, char *file_path);
+
 #endif // !FILE_H

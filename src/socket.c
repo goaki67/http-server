@@ -26,6 +26,13 @@ int open_socket(uint16_t port_number) {
     exit(errno);
   }
 
+  int opt = 1;
+  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+    log_warn("setsockopt error: %s", strerror(errno));
+    close(sockfd);
+    exit(EXIT_FAILURE);
+  }
+
   memset((char *)&serv_addr, 0, sizeof serv_addr);
   serv_addr.sin_family = AF_INET;
   serv_addr.sin_port = htons(port_number);

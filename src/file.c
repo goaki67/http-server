@@ -1,6 +1,5 @@
 #include <errno.h>
-#include <stddef.h>
-#include <stdint.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +7,7 @@
 
 #include "file.h"
 #include "log.h"
+#include "string_utils.h"
 
 file_t get_file_contents(const char *file_path) {
   file_t data = {.data = nullptr, .length = 0};
@@ -92,4 +92,50 @@ file_t get_file_contents(const char *file_path) {
     log_warn("Close failed \"%s\": %s", file_path, strerror(errno));
   }
   return data;
+}
+
+[[nodiscard]]
+char *get_safe_path(char *root_path, char *file_path) {
+  if (root_path == nullptr || file_path == nullptr) {
+    log_warn("Got nullptr instead of a string");
+    return nullptr;
+  }
+
+  char *resolved_root = realpath(root_path, nullptr);
+  if (resolved_root == nullptr) {
+    log_error("Could not resolve root directory \"%s\": %s", root_path,
+              strerror(errno));
+    return nullptr;
+  }
+
+  size_t len = strlen(resolved_root) + strlen(file_path) + 2;
+  char *file = malloc(len);
+  (void)snprintf(file, len, "%s/%s", resolved_root, file_path);
+
+  char *resolved_file = realpath(file, nullptr);
+  if (resolved_file == nullptr) {
+    log_error("Could not resolve file directory \"%s\": %s", file,
+              strerror(errno));
+    free(file);
+    free(resolved_root);
+    return nullptr;
+  }
+
+  free(file);
+
+  if (str_starts_with(resolved_file, resolved_root)) {
+    char boundary_char = resolved_file[strlen(resolved_root)];
+    free(resolved_root);
+
+    if (boundary_char != '\0' && boundary_char != '/') {
+      free(resolved_file);
+      return nullptr;
+    }
+
+    return resolved_file;
+  }
+
+  free(resolved_file);
+  free(resolved_root);
+  return nullptr;
 }

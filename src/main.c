@@ -33,36 +33,35 @@ int main(int argc, char *argv[]) {
     if (strlen(filename) == 1 && filename[0] == '/') {
       free(filename);
       filename = "index.html";
-      filepath =
-          malloc(sizeof(char) * (strlen(argv[2]) + strlen(filename) + 2));
-      (void)snprintf(filepath,
-                     sizeof(char) * (strlen(argv[2]) + strlen(filename) + 2),
-                     "%s/%s", argv[2], filename);
+      filepath = get_safe_path(argv[2], filename);
     } else {
-      filepath =
-          malloc(sizeof(char) * (strlen(argv[2]) + strlen(filename) + 2));
-      (void)snprintf(filepath,
-                     sizeof(char) * (strlen(argv[2]) + strlen(filename) + 2),
-                     "%s/%s", argv[2], filename);
+      filepath = get_safe_path(argv[2], filename);
       free(filename);
     }
-    log_trace(filepath);
-    free((void *)http_request);
 
     char *message;
-    file_t file = get_file_contents(filepath);
-    if (file.data == nullptr) {
-      log_error("File not found");
-      message = "HTTP/1.0 200 OK\n\nFile not found";
-      (void)write(client, message, strlen(message));
+    if (filepath != nullptr) {
+      log_trace(filepath);
+      free((void *)http_request);
+
+      file_t file = get_file_contents(filepath);
+      if (file.data == nullptr) {
+        log_error("File not found");
+        message = "HTTP/1.0 404 NOT FOUND\n\nFile Not Found";
+        (void)write(client, message, strlen(message));
+      } else {
+        char *header = "HTTP/1.0 200 OK\n\n";
+        (void)write(client, header, strlen(header));
+        (void)write(client, file.data, file.length);
+      }
+      free(file.data);
+      free(filepath);
     } else {
-      char *header = "HTTP/1.0 200 OK\n\n";
-      (void)write(client, header, strlen(header));
-      (void)write(client, file.data, file.length);
+      log_error("File not found");
+      message = "HTTP/1.0 404 NOT FOUND\n\nFile Not Found";
+      (void)write(client, message, strlen(message));
     }
 
-    free(file.data);
-    free(filepath);
     close(client);
   }
 
