@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#define BUFFER_SIZE 1024
+
 typedef struct {
   size_t length;
   size_t allocated;

@@ -6,6 +6,92 @@
 #include "log.h"
 #include "string_utils.h"
 
+int string_init(string_t *str, char *data) {
+  if (str == nullptr || data == nullptr) {
+    //returns with errno
+    return -EINVAL;
+  }
+
+  str->length = strlen(data);
+  str->allocated = str->length + 1;
+  str->data = (char *)malloc(str->allocated);
+  if (str->data == nullptr) {
+    log_error("While allocating memory: %s", strerror(errno));
+    return -ENOMEM;
+  }
+  memcpy(str->data, data, str->allocated);
+  return 0;
+}
+
+void string_destroy(string_t *str) {
+  if (str == nullptr) {
+    return;
+  }
+
+  free(str->data);
+  str->data = nullptr;
+  str->length = 0;
+  str->allocated = 0;
+}
+
+int string_append(string_t *str, char *data) {
+  if (str == nullptr || data == nullptr) {
+    return -EINVAL;
+  }
+
+  size_t data_len = strlen(data);
+  size_t new_length = str->length + data_len;
+  if (new_length + 1 > str->allocated) {
+    size_t new_allocated = str->allocated + BUFFER_SIZE;
+    char *new_data = (char *)realloc(str->data, new_allocated);
+    if (new_data == nullptr) {
+      log_error("While reallocating memory: %s", strerror(errno));
+      return -ENOMEM;
+    }
+    str->data = new_data;
+    str->allocated = new_allocated;
+  }
+
+  memcpy(str->data + str->length, data, data_len + 1);
+  str->length = new_length;
+
+  return 0;
+}
+
+int string_append_s(string_t *str, string_t *data) {
+  if (str == nullptr || data == nullptr) {
+    return -EINVAL;
+  }
+
+  return string_append(str, data->data);
+}
+
+bool string_starts_with(string_t *str, char *prefix) {
+  if (str == nullptr || prefix == nullptr) {
+    return false;
+  }
+
+  size_t prefix_len = strlen(prefix);
+  if (prefix_len > str->length) {
+    return false;
+  }
+
+  return strncmp(str->data, prefix, prefix_len) == 0;
+}
+
+bool string_starts_with_s(string_t *str, string_t *prefix) {
+  if (str == nullptr || prefix == nullptr) {
+    return false;
+  }
+
+  if (prefix->length > str->length) {
+    return false;
+  }
+
+  return strncmp(str->data, prefix->data, prefix->length) == 0;
+}
+
+
 [[nodiscard]]
 char **str_split(char *input, char delimiter) {
   if (input == nullptr) {
