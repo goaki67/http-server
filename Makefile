@@ -1,6 +1,6 @@
 APP      := server
-CC       ?= gcc
-BUILD    ?= debug
+CC       = clang
+BUILD    = debug
 
 # Standard & Includes
 STD      := -std=c23 -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE
