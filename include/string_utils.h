@@ -13,22 +13,24 @@ typedef struct {
 } string_t;
 
 // gets a char* and makes a string_t
-int string_init(string_t *, char *);
+[[nodiscard]]
+int string_init(string_t *str, const char *data);
 // free
 void string_destroy(string_t *);
 // addes the char* to the end of string_t
-int string_append(string_t *, char *);
+[[nodiscard]]
+int string_append(string_t *, const char *);
+[[nodiscard]]
 int string_append_s(string_t *, string_t *);
 // check if string_t* strats with the second string_t*
+[[nodiscard]]
 bool string_starts_with(string_t *, char *);
+[[nodiscard]]
 bool string_starts_with_s(string_t *, string_t *);
 
 [[nodiscard]]
 char **str_split(char *input, char delimiter);
 
 char *get_line(char **tokens, size_t index);
-
-[[nodiscard]]
-bool str_starts_with(const char *str, const char *prefix);
 
 #endif // !STRING_UTILS_H

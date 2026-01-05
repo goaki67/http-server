@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <limits.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,30 +10,31 @@
 #include "log.h"
 #include "string_utils.h"
 
-file_t get_file_contents(const char *file_path) {
+file_t get_file_contents(const string_t *file_path) {
   file_t data = {.data = nullptr, .length = 0};
 
-  FILE *file = fopen(file_path, "rb");
+  FILE *file = fopen(file_path->data, "rb");
   if (file == nullptr) {
-    log_warn("Problem opening file \"%s\": %s", file_path, strerror(errno));
+    log_warn("Problem opening file \"%s\": %s", file_path->data,
+             strerror(errno));
     return data;
   }
 
   struct stat path_stat;
   if (fstat(fileno(file), &path_stat) == -1) {
-    log_error("Failed to stat \"%s\": %s", file_path, strerror(errno));
+    log_error("Failed to stat \"%s\": %s", file_path->data, strerror(errno));
     (void)fclose(file);
     return data;
   }
 
   if (S_ISDIR(path_stat.st_mode)) {
-    log_warn("Path \"%s\" is a directory, not a file", file_path);
+    log_warn("Path \"%s\" is a directory, not a file", file_path->data);
     (void)fclose(file);
     return data;
   }
 
   if (!S_ISREG(path_stat.st_mode)) {
-    log_warn("Not a regular file: \"%s\"", file_path);
+    log_warn("Not a regular file: \"%s\"", file_path->data);
     (void)fclose(file);
     return data;
   }
@@ -77,10 +79,10 @@ file_t get_file_contents(const char *file_path) {
   size_t read_length = fread(data.data, 1, length, file);
   if (read_length != length) {
     if (ferror(file)) {
-      log_error("Read error \"%s\": %s", file_path, strerror(errno));
+      log_error("Read error \"%s\": %s", file_path->data, strerror(errno));
     } else {
-      log_error("Short read \"%s\" (Expected %ld, got %zu)", file_path, length,
-                read_length);
+      log_error("Short read \"%s\" (Expected %ld, got %zu)", file_path->data,
+                length, read_length);
     }
     free(data.data);
     (void)fclose(file);
@@ -89,53 +91,81 @@ file_t get_file_contents(const char *file_path) {
   data.length = read_length;
 
   if (fclose(file) == EOF) {
-    log_warn("Close failed \"%s\": %s", file_path, strerror(errno));
+    log_warn("Close failed \"%s\": %s", file_path->data, strerror(errno));
   }
   return data;
 }
 
 [[nodiscard]]
-char *get_safe_path(char *root_path, char *file_path) {
-  if (root_path == nullptr || file_path == nullptr) {
+string_t *get_safe_path(string_t *root_path, string_t *file_path) {
+  if (root_path == nullptr || file_path == nullptr ||
+      root_path->data == nullptr || file_path->data == nullptr) {
     log_warn("Got nullptr instead of a string");
     return nullptr;
   }
 
-  char *resolved_root = realpath(root_path, nullptr);
-  if (resolved_root == nullptr) {
-    log_error("Could not resolve root directory \"%s\": %s", root_path,
-              strerror(errno));
+  char *real_root_raw = realpath(root_path->data, nullptr);
+  if (real_root_raw == nullptr) {
+    log_error("Could not resolve root directory: %s", strerror(errno));
     return nullptr;
   }
 
-  size_t len = strlen(resolved_root) + strlen(file_path) + 2;
-  char *file = malloc(len);
-  (void)snprintf(file, len, "%s/%s", resolved_root, file_path);
+  string_t resolved_root;
+  if (string_init(&resolved_root, real_root_raw) != 0) {
+    free(real_root_raw);
+    return nullptr;
+  }
+  free(real_root_raw);
 
-  char *resolved_file = realpath(file, nullptr);
+  string_t file;
+  if (string_init(&file, resolved_root.data) != 0) {
+    string_destroy(&resolved_root);
+    return nullptr;
+  }
+  (void)string_append(&file, "/");
+  (void)string_append_s(&file, file_path);
+
+  string_t *resolved_file = (string_t *)calloc(1, sizeof(string_t));
   if (resolved_file == nullptr) {
-    log_error("Could not resolve file directory \"%s\": %s", file,
-              strerror(errno));
-    free(file);
-    free(resolved_root);
+    string_destroy(&file);
+    string_destroy(&resolved_root);
     return nullptr;
   }
 
-  free(file);
+  char *real_file_raw = realpath(file.data, nullptr);
+  if (real_file_raw == nullptr) {
+    log_error("Could not resolve file directory \"%s\": %s", file.data,
+              strerror(errno));
+    string_destroy(&file);
+    string_destroy(&resolved_root);
+    free(resolved_file);
+    return nullptr;
+  }
 
-  if (str_starts_with(resolved_file, resolved_root)) {
-    char boundary_char = resolved_file[strlen(resolved_root)];
-    free(resolved_root);
+  if (string_init(resolved_file, real_file_raw) != 0) {
+    free(real_file_raw);
+    string_destroy(&file);
+    string_destroy(&resolved_root);
+    free(resolved_file);
+    return nullptr;
+  }
+  free(real_file_raw);
+  string_destroy(&file);
+
+  if (string_starts_with_s(resolved_file, &resolved_root)) {
+    char boundary_char = resolved_file->data[resolved_root.length];
+    string_destroy(&resolved_root);
 
     if (boundary_char != '\0' && boundary_char != '/') {
+      string_destroy(resolved_file);
       free(resolved_file);
       return nullptr;
     }
-
     return resolved_file;
   }
 
+  string_destroy(resolved_file);
   free(resolved_file);
-  free(resolved_root);
+  string_destroy(&resolved_root);
   return nullptr;
 }

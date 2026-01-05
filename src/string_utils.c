@@ -1,25 +1,35 @@
 #include <errno.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "log.h"
 #include "string_utils.h"
 
-int string_init(string_t *str, char *data) {
-  if (str == nullptr || data == nullptr) {
-    //returns with errno
+[[nodiscard]]
+int string_init(string_t *str, const char *data) {
+  if (str == nullptr) {
     return -EINVAL;
   }
 
-  str->length = strlen(data);
-  str->allocated = str->length + 1;
+  size_t len = data ? strlen(data) : 0;
+
+  if (len == SIZE_MAX) {
+    return -EOVERFLOW;
+  }
+
+  str->allocated = len + 1;
   str->data = (char *)malloc(str->allocated);
   if (str->data == nullptr) {
-    log_error("While allocating memory: %s", strerror(errno));
     return -ENOMEM;
   }
-  memcpy(str->data, data, str->allocated);
+
+  if (data) {
+    memcpy(str->data, data, len);
+  }
+  str->data[len] = '\0';
+  str->length = len;
   return 0;
 }
 
@@ -34,26 +44,42 @@ void string_destroy(string_t *str) {
   str->allocated = 0;
 }
 
-int string_append(string_t *str, char *data) {
+int string_append(string_t *str, const char *data) {
   if (str == nullptr || data == nullptr) {
     return -EINVAL;
   }
 
   size_t data_len = strlen(data);
-  size_t new_length = str->length + data_len;
-  if (new_length + 1 > str->allocated) {
-    size_t new_allocated = str->allocated + BUFFER_SIZE;
-    char *new_data = (char *)realloc(str->data, new_allocated);
+
+  if (SIZE_MAX - str->length < data_len) {
+    return -EOVERFLOW;
+  }
+
+  size_t required_len = str->length + data_len;
+
+  if (required_len + 1 > str->allocated) {
+    size_t new_cap = str->allocated * 2;
+
+    if (new_cap < required_len + 1) {
+      new_cap = required_len + 1;
+    }
+
+    if (new_cap < str->allocated) {
+      new_cap = SIZE_MAX;
+    }
+
+    char *new_data = (char *)realloc(str->data, new_cap);
     if (new_data == nullptr) {
-      log_error("While reallocating memory: %s", strerror(errno));
+      log_error("While allocating memory: %s", strerror(errno));
       return -ENOMEM;
     }
     str->data = new_data;
-    str->allocated = new_allocated;
+    str->allocated = new_cap;
   }
 
-  memcpy(str->data + str->length, data, data_len + 1);
-  str->length = new_length;
+  memcpy(str->data + str->length, data, data_len);
+  str->length = required_len;
+  str->data[str->length] = '\0';
 
   return 0;
 }
@@ -90,7 +116,6 @@ bool string_starts_with_s(string_t *str, string_t *prefix) {
 
   return strncmp(str->data, prefix->data, prefix->length) == 0;
 }
-
 
 [[nodiscard]]
 char **str_split(char *input, char delimiter) {

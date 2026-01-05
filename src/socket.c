@@ -10,10 +10,8 @@
 #include "constants.h"
 #include "log.h"
 #include "socket.h"
-/*
-  int newsockfd; socklen_t clilen; ssize_t n;
-  struct sockaddr_in cli_addr;
-*/
+#include "string_utils.h"
+
 int open_socket(uint16_t port_number) {
   int sockfd;
   struct sockaddr_in serv_addr;
@@ -69,4 +67,21 @@ int get_client(int sockfd) {
   }
 
   return newsockfd;
+}
+
+[[nodiscard]]
+int parse_port(const char *str, uint16_t *out_port) {
+  char *endptr;
+  constexpr int base = 10;
+  long val = strtol(str, &endptr, base);
+
+  if (endptr == str || *endptr != '\0') {
+    return -EINVAL;
+  }
+  if (val <= 0 || val > UINT16_MAX) {
+    return -ERANGE;
+  }
+
+  *out_port = (uint16_t)val;
+  return 0;
 }

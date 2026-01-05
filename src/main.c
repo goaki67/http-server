@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +10,7 @@
 #include "http.h"
 #include "log.h"
 #include "socket.h"
+#include "string_utils.h"
 
 int main(int argc, char *argv[]) {
   if (argc < 3) {
@@ -16,7 +18,16 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  uint16_t port_number = (uint16_t)atoi(argv[1]);
+  uint16_t port_number;
+  if (parse_port(argv[1], &port_number) != 0) {
+    log_fatal("Expected port number in the second argument");
+    return EXIT_FAILURE;
+  }
+  string_t root_dir;
+  if (string_init(&root_dir, argv[2]) != 0) {
+    return EXIT_FAILURE;
+  }
+
   int sockfd = open_socket(port_number);
   char buffer[BUFFER_SIZE] = {0};
 
@@ -28,20 +39,21 @@ int main(int argc, char *argv[]) {
     printf("\nMessage recived: \"\n%s\n\"\n", buffer);
 
     char **http_request = http_split_lines(buffer);
-    char *filename = get_filename_from_http(http_request);
-    char *filepath;
-    if (strlen(filename) == 1 && filename[0] == '/') {
-      free(filename);
-      filename = "index.html";
-      filepath = get_safe_path(argv[2], filename);
+    string_t *filename = get_filename_from_http(http_request);
+    string_t *filepath;
+    if (filename->length == 1 && filename->data[0] == '/') {
+      string_destroy(filename);
+      (void)string_init(filename, "index.html");
+      filepath = get_safe_path(&root_dir, filename);
     } else {
-      filepath = get_safe_path(argv[2], filename);
-      free(filename);
+      filepath = get_safe_path(&root_dir, filename);
     }
+    string_destroy(filename);
+    free(filename);
 
     char *message;
     if (filepath != nullptr) {
-      log_trace(filepath);
+      log_trace(filepath->data);
       free((void *)http_request);
 
       file_t file = get_file_contents(filepath);
@@ -55,6 +67,7 @@ int main(int argc, char *argv[]) {
         (void)write(client, file.data, file.length);
       }
       free(file.data);
+      string_destroy(filepath);
       free(filepath);
     } else {
       log_error("File not found");

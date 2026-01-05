@@ -16,7 +16,7 @@ char **http_split_lines(char *http_request) {
   return rtn;
 }
 
-char *get_filename_from_http(char **http_request) {
+string_t *get_filename_from_http(char **http_request) {
   char *first_line = get_line(http_request, 0);
   if (first_line == nullptr) {
     log_warn("Empty HTTP request");
@@ -36,10 +36,11 @@ char *get_filename_from_http(char **http_request) {
   }
 
   char *filename_ptr = get_line(tmp, 1);
-  char *final_filename = nullptr;
+  string_t *final_filename = nullptr;
 
   if (filename_ptr != nullptr) {
-    final_filename = strdup(filename_ptr);
+    final_filename = (string_t *)calloc(1, sizeof(string_t));
+    (void)string_init(final_filename, filename_ptr);
   } else {
     log_warn("Malformed Request: No path found in '%s'", first_line);
   }
