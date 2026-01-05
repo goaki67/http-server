@@ -1,18 +1,34 @@
+#include <signal.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
-#include "constants.h"
-#include "file.h"
-#include "http.h"
 #include "log.h"
+#include "queue.h"
 #include "socket.h"
 #include "string_utils.h"
+#include "thread_pool.h"
+
+static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
+volatile sig_atomic_t server_running = 1;
+
+void sig_handler(int signo) {
+  (void)signo;
+  server_running = 0;
+}
+
+void thread_lock_callback(bool lock, void *udata) {
+  pthread_mutex_t *LOCK = (pthread_mutex_t *)udata;
+  if (lock) {
+    pthread_mutex_lock(LOCK);
+  } else {
+    pthread_mutex_unlock(LOCK);
+  }
+}
 
 int main(int argc, char *argv[]) {
+  log_set_lock(thread_lock_callback, &log_mutex);
   if (argc < 3) {
     log_fatal("Expected port_number and html_path as arguments");
     return EXIT_FAILURE;
@@ -23,61 +39,36 @@ int main(int argc, char *argv[]) {
     log_fatal("Expected port number in the second argument");
     return EXIT_FAILURE;
   }
+
   string_t root_dir;
-  if (string_init(&root_dir, argv[2]) != 0) {
+  (void)string_init(&root_dir, argv[2]);
+
+  struct sigaction sa = {0};
+  sa.sa_handler = sig_handler;
+  sigaction(SIGINT, &sa, nullptr);
+  sigaction(SIGTERM, &sa, nullptr);
+
+  int sockfd = open_socket(port_number);
+  job_queue_t queue;
+  queue_init(&queue);
+
+  thread_pool_t pool;
+  if (thread_pool_init(&pool, &queue, &root_dir) != 0) {
     return EXIT_FAILURE;
   }
 
-  int sockfd = open_socket(port_number);
-  char buffer[BUFFER_SIZE] = {0};
-
-  while (true) {
+  log_info("Server accepting connections...");
+  while (server_running) {
     int client = get_client(sockfd);
-
-    (void)read(client, buffer, BUFFER_SIZE - 1);
-    buffer[BUFFER_SIZE - 1] = '\0';
-    printf("\nMessage recived: \"\n%s\n\"\n", buffer);
-
-    char **http_request = http_split_lines(buffer);
-    string_t *filename = get_filename_from_http(http_request);
-    string_t *filepath;
-    if (filename->length == 1 && filename->data[0] == '/') {
-      string_destroy(filename);
-      (void)string_init(filename, "index.html");
-      filepath = get_safe_path(&root_dir, filename);
-    } else {
-      filepath = get_safe_path(&root_dir, filename);
+    if (client >= 0) {
+      queue_push(&queue, client);
     }
-    string_destroy(filename);
-    free(filename);
-
-    char *message;
-    if (filepath != nullptr) {
-      log_trace(filepath->data);
-      free((void *)http_request);
-
-      file_t file = get_file_contents(filepath);
-      if (file.data == nullptr) {
-        log_error("File not found");
-        message = "HTTP/1.0 404 NOT FOUND\n\nFile Not Found";
-        (void)write(client, message, strlen(message));
-      } else {
-        char *header = "HTTP/1.0 200 OK\n\n";
-        (void)write(client, header, strlen(header));
-        (void)write(client, file.data, file.length);
-      }
-      free(file.data);
-      string_destroy(filepath);
-      free(filepath);
-    } else {
-      log_error("File not found");
-      message = "HTTP/1.0 404 NOT FOUND\n\nFile Not Found";
-      (void)write(client, message, strlen(message));
-    }
-
-    close(client);
   }
 
+  log_info("Stopping server...");
+
+  thread_pool_wait(&pool);
+  queue_destroy(&queue);
   close(sockfd);
 
   return EXIT_SUCCESS;
