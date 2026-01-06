@@ -1,8 +1,15 @@
-#include <stdlib.h>
-
+#include "thread_pool.h"
 #include "handler.h"
 #include "log.h"
-#include "thread_pool.h"
+
+void thread_lock_callback(bool lock, void *udata) {
+  pthread_mutex_t *LOCK = (pthread_mutex_t *)udata;
+  if (lock) {
+    pthread_mutex_lock(LOCK);
+  } else {
+    pthread_mutex_unlock(LOCK);
+  }
+}
 
 static void *worker_entry(void *arg) {
   worker_config_t *cfg = (worker_config_t *)arg;

@@ -15,8 +15,8 @@ ifeq ($(BUILD),debug)
     LDFLAGS := -fsanitize=address,undefined
     OUT     := build/debug
 else
-    CFLAGS  := $(STD) $(WARN) $(INC) -O3 -DNDEBUG -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE
-    LDFLAGS := -pie -Wl,-z,relro,-z,now -s
+    CFLAGS  := $(STD) $(WARN) $(INC) -O3 -g3 -fsanitize=address,undefined -DNDEBUG -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fPIE
+    LDFLAGS := -pie -Wl,-z,relro,-z,now -s -fsanitize=address,undefined
     OUT     := build/release
 endif
 

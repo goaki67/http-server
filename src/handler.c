@@ -33,11 +33,11 @@ void handle_client(int client, string_t *root_dir) {
   }
   string_destroy(filename);
   free(filename);
+  free((void *)http_request);
 
   char *message;
   if (filepath != nullptr) {
     log_trace(filepath->data);
-    free((void *)http_request);
 
     file_t file = get_file_contents(filepath);
     if (file.data == nullptr) {

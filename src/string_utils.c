@@ -12,6 +12,7 @@ int string_init(string_t *str, const char *data) {
   if (str == nullptr) {
     return -EINVAL;
   }
+  string_destroy(str);
 
   size_t len = data ? strlen(data) : 0;
 

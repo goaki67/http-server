@@ -24,4 +24,7 @@ int thread_pool_init(thread_pool_t *pool, job_queue_t *queue,
 
 void thread_pool_wait(thread_pool_t *pool);
 
+extern pthread_mutex_t log_lock;
+void thread_lock_callback(bool lock, void *udata);
+
 #endif

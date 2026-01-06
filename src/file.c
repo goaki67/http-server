@@ -10,6 +10,22 @@
 #include "log.h"
 #include "string_utils.h"
 
+path_type_t get_path_type(const string_t *path) {
+  struct stat path_stat;
+  if (stat(path->data, &path_stat) == -1) {
+    log_error("Failed to stat \"%s\": %s", path->data, strerror(errno));
+    return PATH_ERROR;
+  }
+
+  if (S_ISREG(path_stat.st_mode)) {
+    return PATH_FILE;
+  } else if (S_ISDIR(path_stat.st_mode)) {
+    return PATH_DIR;
+  }
+
+  return PATH_OTHER;
+}
+
 file_t get_file_contents(const string_t *file_path) {
   file_t data = {.data = nullptr, .length = 0};
 

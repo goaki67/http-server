@@ -61,7 +61,6 @@ int get_client(int sockfd) {
   newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
   if (newsockfd < 0) {
     close(sockfd);
-    close(newsockfd);
     log_error("While accepting a connection: %s", strerror(errno));
     exit(errno);
   }
