@@ -48,7 +48,7 @@ int queue_pop(job_queue_t *q) {
   return client_fd;
 }
 
-void queue_destroy(job_queue_t *q) {
+void queue_shutdown(job_queue_t *q) {
   if (!q) {
     return;
   }
@@ -57,4 +57,12 @@ void queue_destroy(job_queue_t *q) {
   pthread_mutex_unlock(&q->lock);
 
   pthread_cond_broadcast(&q->notify);
+}
+
+void queue_destroy(job_queue_t *q) {
+  if (!q) {
+    return;
+  }
+  pthread_mutex_destroy(&q->lock);
+  pthread_cond_destroy(&q->notify);
 }

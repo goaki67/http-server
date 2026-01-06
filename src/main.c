@@ -61,6 +61,7 @@ int main(int argc, char *argv[]) {
 
   log_info("Stopping server...");
 
+  queue_shutdown(&queue);
   thread_pool_wait(&pool);
   queue_destroy(&queue);
   string_destroy(&root_dir);

@@ -19,6 +19,7 @@ typedef struct {
 void queue_init(job_queue_t *q);
 int queue_push(job_queue_t *q, int client_fd);
 int queue_pop(job_queue_t *q);
+void queue_shutdown(job_queue_t *q);
 void queue_destroy(job_queue_t *q);
 
 #endif
