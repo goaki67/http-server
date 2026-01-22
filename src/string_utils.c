@@ -8,9 +8,9 @@
 #include "string_utils.h"
 
 [[nodiscard]]
-int string_init(string_t *str, const char *data) {
+string_t *string_init(string_t *str, const char *data) {
   if (str == nullptr) {
-    return -EINVAL;
+    str = (string_t *)calloc(1, sizeof(string_t));
   }
   if (str->allocated != 0) {
     string_destroy(str);
@@ -19,13 +19,13 @@ int string_init(string_t *str, const char *data) {
   size_t len = data ? strlen(data) : 0;
 
   if (len == SIZE_MAX) {
-    return -EOVERFLOW;
+    return nullptr;
   }
 
   str->allocated = len + 1;
   str->data = (char *)malloc(str->allocated);
   if (str->data == nullptr) {
-    return -ENOMEM;
+    return nullptr;
   }
 
   if (data) {
@@ -33,7 +33,7 @@ int string_init(string_t *str, const char *data) {
   }
   str->data[len] = '\0';
   str->length = len;
-  return 0;
+  return str;
 }
 
 void string_destroy(string_t *str) {

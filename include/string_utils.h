@@ -12,17 +12,15 @@ typedef struct {
   char *data;
 } string_t;
 
-// gets a char* and makes a string_t
 [[nodiscard]]
-int string_init(string_t *str, const char *data);
-// free
+string_t *string_init(string_t *str, const char *data);
 void string_destroy(string_t *);
-// addes the char* to the end of string_t
+
 [[nodiscard]]
 int string_append(string_t *, const char *);
 [[nodiscard]]
 int string_append_s(string_t *, string_t *);
-// check if string_t* strats with the second string_t*
+
 [[nodiscard]]
 bool string_starts_with(string_t *, char *);
 [[nodiscard]]

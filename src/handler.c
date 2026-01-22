@@ -20,25 +20,24 @@ void handle_client(int client, string_t *root_dir) {
   buffer[BUFFER_SIZE - 1] = '\0';
   printf("\nMessage recived: \"\n%s\n\"\n", buffer);
 
-  string_t buf;
-  (void)string_init(&buf, buffer);
+  string_t *buf = string_init(nullptr, buffer);
 
-  http_request_t request = parse_http(&buf);
+  http_request_t request = parse_http(buf);
   log_trace("%s %s", request.method, request.uri);
-  string_t *filename = (string_t *)calloc(1, sizeof(string_t));
-  (void)string_init(filename, request.uri);
+  string_t *filename = string_init(nullptr, request.uri);
   string_t *filepath;
   if (filename == nullptr ||
       (filename->length == 1 && filename->data[0] == '/')) {
-    string_destroy(filename);
-    (void)string_init(filename, "index.html");
+    filename = string_init(filename, "index.html");
     filepath = get_safe_path(root_dir, filename);
   } else {
     filepath = get_safe_path(root_dir, filename);
   }
   string_destroy(filename);
+  string_destroy(buf);
   free(filename);
   free(request.uri);
+  free(buf);
 
   char *message;
   if (filepath != nullptr) {

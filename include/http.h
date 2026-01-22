@@ -31,9 +31,4 @@ typedef struct {
 
 http_request_t parse_http(string_t *data);
 
-[[nodiscard]]
-char **http_split_lines(char *http_request);
-[[nodiscard]]
-string_t *get_filename_from_http(char **http_request);
-
 #endif // !HTTP_H

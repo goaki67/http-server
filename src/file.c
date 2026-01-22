@@ -127,14 +127,14 @@ string_t *get_safe_path(string_t *root_path, string_t *file_path) {
   }
 
   string_t resolved_root;
-  if (string_init(&resolved_root, real_root_raw) != 0) {
+  if (string_init(&resolved_root, real_root_raw) == nullptr) {
     free(real_root_raw);
     return nullptr;
   }
   free(real_root_raw);
 
   string_t file;
-  if (string_init(&file, resolved_root.data) != 0) {
+  if (string_init(&file, resolved_root.data) == nullptr) {
     string_destroy(&resolved_root);
     return nullptr;
   }
@@ -158,7 +158,7 @@ string_t *get_safe_path(string_t *root_path, string_t *file_path) {
     return nullptr;
   }
 
-  if (string_init(resolved_file, real_file_raw) != 0) {
+  if (string_init(resolved_file, real_file_raw) == nullptr) {
     free(real_file_raw);
     string_destroy(&file);
     string_destroy(&resolved_root);
