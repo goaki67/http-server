@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "arena.h"
 #include "file.h"
 #include "log.h"
 #include "log_config.h"
@@ -27,7 +28,6 @@ int setup(int argc, char *argv[], uint16_t *port_number, string_t *root_dir) {
 
   signal_init();
 
-  (void)string_init(root_dir, argv[2]);
   if (get_path_type(root_dir) != PATH_DIR) {
     log_fatal("Usage: %s <port_number> <project_dir>");
     return -1;
@@ -37,16 +37,17 @@ int setup(int argc, char *argv[], uint16_t *port_number, string_t *root_dir) {
 }
 
 int main(int argc, char *argv[]) {
+  arena_t *main_mem = arena_create(ARENA_MAX_SIZE / 64);
+  string_t *root_dir = string_create(main_mem, argv[2]);
   uint16_t port_number;
-  string_t root_dir;
-  setup(argc, argv, &port_number, &root_dir);
+  setup(argc, argv, &port_number, root_dir);
 
   int sockfd = open_socket(port_number);
   job_queue_t queue;
   queue_init(&queue);
 
   thread_pool_t pool;
-  if (thread_pool_init(&pool, &queue, &root_dir) != 0) {
+  if (thread_pool_init(&pool, &queue, root_dir) != 0) {
     return EXIT_FAILURE;
   }
 
@@ -64,7 +65,6 @@ int main(int argc, char *argv[]) {
   queue_shutdown(&queue);
   thread_pool_wait(&pool);
   queue_destroy(&queue);
-  string_destroy(&root_dir);
   close(sockfd);
 
   return EXIT_SUCCESS;

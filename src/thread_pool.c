@@ -26,6 +26,7 @@ static void *worker_entry(void *arg) {
     }
 
     handle_client(worker_memory, client_fd, cfg->root_dir);
+    arena_reset(worker_memory);
   }
 
   return nullptr;

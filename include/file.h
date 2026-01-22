@@ -12,10 +12,11 @@ typedef struct file_t {
 } file_t;
 
 [[nodiscard]]
-file_t get_file_contents(const string_t *file_path);
+file_t get_file_contents(arena_t *memory, const string_t *file_path);
 
 [[nodiscard]]
-string_t *get_safe_path(string_t *root_path, string_t *file_path);
+string_t *get_safe_path(arena_t *memory, string_t *root_path,
+                        string_t *file_path);
 
 typedef enum {
   PATH_ERROR = -1,

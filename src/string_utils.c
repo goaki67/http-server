@@ -79,6 +79,36 @@ string_t *string_concat(arena_t *a, const string_t *s1, const char *s2) {
 }
 
 [[nodiscard]]
+string_t *string_concat_s(arena_t *a, const string_t *s1, const string_t *s2) {
+  if (a == nullptr) {
+    log_error("String concat_s failed: Arena is NULL.");
+    return nullptr;
+  }
+  if (s1 == nullptr || s2 == nullptr) {
+    log_warn("String concat_s failed: Invalid inputs (s1: %p, s2: %p).",
+             (void *)s1, (void *)s2);
+    return nullptr;
+  }
+
+  size_t total_len = s1->length + s2->length;
+  string_t *result = string_create_from_len(a, nullptr, total_len);
+  if (result == nullptr) {
+    log_error("String concat_s failed: Could not allocate result string.");
+    return nullptr;
+  }
+
+  if (s1->length > 0) {
+    memcpy(result->data, s1->data, s1->length);
+  }
+  if (s2->length > 0) {
+    memcpy(result->data + s1->length, s2->data, s2->length);
+  }
+
+  result->data[total_len] = '\0';
+  return result;
+}
+
+[[nodiscard]]
 bool string_starts_with(const string_t *str, const char *prefix) {
   if (str == nullptr || prefix == nullptr) {
     return false;

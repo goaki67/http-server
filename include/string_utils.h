@@ -18,6 +18,8 @@ string_t *string_create_from_len(arena_t *a, const char *src, size_t len);
 
 [[nodiscard]]
 string_t *string_concat(arena_t *a, const string_t *s1, const char *s2);
+[[nodiscard]]
+string_t *string_concat_s(arena_t *a, const string_t *s1, const string_t *s2);
 
 [[nodiscard]]
 bool string_starts_with(const string_t *str, const char *prefix);
