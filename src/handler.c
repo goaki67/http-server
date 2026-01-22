@@ -20,8 +20,13 @@ void handle_client(int client, string_t *root_dir) {
   buffer[BUFFER_SIZE - 1] = '\0';
   printf("\nMessage recived: \"\n%s\n\"\n", buffer);
 
-  char **http_request = http_split_lines(buffer);
-  string_t *filename = get_filename_from_http(http_request);
+  string_t buf;
+  (void)string_init(&buf, buffer);
+
+  http_request_t request = parse_http(&buf);
+  log_trace("%s %s", request.method, request.uri);
+  string_t *filename = (string_t *)calloc(1, sizeof(string_t));
+  (void)string_init(filename, request.uri);
   string_t *filepath;
   if (filename == nullptr ||
       (filename->length == 1 && filename->data[0] == '/')) {
@@ -33,7 +38,7 @@ void handle_client(int client, string_t *root_dir) {
   }
   string_destroy(filename);
   free(filename);
-  free((void *)http_request);
+  free(request.uri);
 
   char *message;
   if (filepath != nullptr) {
