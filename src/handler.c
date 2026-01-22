@@ -5,17 +5,18 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "arena.h"
 #include "file.h"
 #include "handler.h"
 #include "http.h"
 #include "log.h"
 #include "string_utils.h"
 
-void handle_client(int client, string_t *root_dir) {
+void handle_client(arena_t *memory, int client, string_t *root_dir) {
   if (client < 0) {
     return;
   }
-  char buffer[BUFFER_SIZE] = {0};
+  char *buffer = arena_alloc(memory, BUFFER_SIZE);
   (void)read(client, buffer, BUFFER_SIZE - 1);
   buffer[BUFFER_SIZE - 1] = '\0';
   printf("\nMessage recived: \"\n%s\n\"\n", buffer);

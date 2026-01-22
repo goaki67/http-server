@@ -1,4 +1,5 @@
 #include "thread_pool.h"
+#include "arena.h"
 #include "handler.h"
 #include "log.h"
 
@@ -13,6 +14,7 @@ void thread_lock_callback(bool lock, void *udata) {
 
 static void *worker_entry(void *arg) {
   worker_config_t *cfg = (worker_config_t *)arg;
+  arena_t *worker_memory = arena_create(ARENA_MAX_SIZE);
   log_trace("Worker %d: Online", cfg->id);
 
   while (true) {
@@ -23,7 +25,7 @@ static void *worker_entry(void *arg) {
       break;
     }
 
-    handle_client(client_fd, cfg->root_dir);
+    handle_client(worker_memory, client_fd, cfg->root_dir);
   }
 
   return nullptr;

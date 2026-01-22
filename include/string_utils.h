@@ -1,34 +1,27 @@
 #ifndef STRING_UTILS_H
 #define STRING_UTILS_H
 
+#include <stdbool.h>
 #include <stddef.h>
-#include <stdlib.h>
 
-#define BUFFER_SIZE 1024
+#include "arena.h"
 
 typedef struct {
-  size_t length;
-  size_t allocated;
   char *data;
+  size_t length;
 } string_t;
 
 [[nodiscard]]
-string_t *string_init(string_t *str, const char *data);
-void string_destroy(string_t *);
+string_t *string_create(arena_t *a, const char *initial_value);
+[[nodiscard]]
+string_t *string_create_from_len(arena_t *a, const char *src, size_t len);
 
 [[nodiscard]]
-int string_append(string_t *, const char *);
-[[nodiscard]]
-int string_append_s(string_t *, string_t *);
+string_t *string_concat(arena_t *a, const string_t *s1, const char *s2);
 
 [[nodiscard]]
-bool string_starts_with(string_t *, char *);
+bool string_starts_with(const string_t *str, const char *prefix);
 [[nodiscard]]
-bool string_starts_with_s(string_t *, string_t *);
+bool string_starts_with_s(const string_t *str, const string_t *prefix);
 
-[[nodiscard]]
-char **str_split(char *input, char delimiter);
-
-char *get_line(char **tokens, size_t index);
-
-#endif // !STRING_UTILS_H
+#endif
