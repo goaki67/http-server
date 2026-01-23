@@ -66,6 +66,7 @@ int main(int argc, char *argv[]) {
   thread_pool_wait(&pool);
   queue_destroy(&queue);
   close(sockfd);
+  arena_destroy(main_mem);
 
   return EXIT_SUCCESS;
 }

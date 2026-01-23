@@ -29,6 +29,7 @@ static void *worker_entry(void *arg) {
     arena_reset(worker_memory);
   }
 
+  arena_destroy(worker_memory);
   return nullptr;
 }
 

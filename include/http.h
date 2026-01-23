@@ -3,32 +3,16 @@
 
 #include <stddef.h>
 
+#include "arena.h"
 #include "string_utils.h"
-
-typedef enum {
-  MAX_METHOD = 7,
-  MAX_URI = 2048,
-} limits_enum;
-
-typedef enum {
-  STATE_METHOD,
-  STATE_SPACE_BEFORE_URI,
-  STATE_URI,
-  STATE_SPACE_BEFORE_VERSION,
-  STATE_VERSION,
-  STATE_CRLF,
-  STATE_DONE,
-  STATE_ERROR,
-} state_enum;
 
 /* should free uri */
 typedef struct {
-  char method[MAX_METHOD];
-  size_t method_len;
-  char *uri;
-  size_t uri_len;
+  string_t *method;
+  string_t *uri;
 } http_request_t;
 
-http_request_t parse_http(string_t *data);
+http_request_t *parse_http(arena_t *memory, string_t *data);
+string_t *http_read_header(arena_t *memory, int sockfd);
 
 #endif // !HTTP_H
