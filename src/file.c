@@ -69,7 +69,7 @@ file_t get_file_contents(arena_t *memory, const string_t *file_path) {
     return data;
   }
 
-  data.data = arena_alloc(memory, length);
+  data.data = arena_alloc(memory, length + 1);
   if (data.data == nullptr) {
     (void)fclose(file);
     log_error("While allocating memory: %s", strerror(errno));
@@ -88,6 +88,7 @@ file_t get_file_contents(arena_t *memory, const string_t *file_path) {
     return (file_t){.data = nullptr, .length = 0};
   }
   data.length = read_length;
+  data.data[length] = '\0';
 
   if (fclose(file) == EOF) {
     log_warn("Close failed \"%s\": %s", file_path->data, strerror(errno));

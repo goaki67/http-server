@@ -3,13 +3,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "arena.h"
+#include "file.h"
 #include "http.h"
-#include "log.h"
 #include "string_utils.h"
 
-http_request_t parse_http(string_t *data) {
+http_request_t *parse_http(arena_t *memory, string_t *data) {
   state_enum state = STATE_METHOD;
-  http_request_t request = {};
+  http_request_t *request =
+      (http_request_t *)arena_alloc(memory, sizeof(http_request_t));
 
   char *token_start = data->data;
   for (size_t i = 0; i < data->length; i++) {
@@ -18,13 +20,12 @@ http_request_t parse_http(string_t *data) {
     switch (state) {
     case STATE_METHOD:
       if (current == ' ') {
-        request.method_len = (size_t)((data->data + i) - token_start);
-        if (request.method_len > MAX_METHOD) {
+        if ((size_t)((data->data + i) - token_start) > MAX_METHOD) {
           state = STATE_ERROR;
           break;
         }
-        (void)snprintf(request.method, request.method_len + 1, "%s",
-                       token_start);
+        request->method = string_create_from_len(
+            memory, token_start, (size_t)((data->data + i) - token_start));
         state = STATE_SPACE_BEFORE_URI;
       }
       break;
@@ -36,13 +37,12 @@ http_request_t parse_http(string_t *data) {
       break;
     case STATE_URI:
       if (current == ' ') {
-        request.uri_len = (size_t)((data->data + i) - token_start);
-        if (request.uri_len > MAX_URI) {
+        if ((size_t)((data->data + i) - token_start) > MAX_URI) {
           state = STATE_ERROR;
           break;
         }
-        request.uri = (char *)malloc(request.uri_len + 1);
-        (void)snprintf(request.uri, request.uri_len + 1, "%s", token_start);
+        request->uri = string_create_from_len(
+            memory, token_start, (size_t)((data->data + i) - token_start));
         state = STATE_SPACE_BEFORE_VERSION;
       }
       break;
@@ -67,12 +67,7 @@ http_request_t parse_http(string_t *data) {
     case STATE_DONE:
       return request;
     case STATE_ERROR:
-      if (request.uri != nullptr) {
-        free(request.uri);
-      }
-      return (http_request_t){};
-    default:
-      break;
+      return nullptr;
     }
   }
 

@@ -23,12 +23,10 @@ typedef enum {
 
 /* should free uri */
 typedef struct {
-  char method[MAX_METHOD];
-  size_t method_len;
-  char *uri;
-  size_t uri_len;
+  string_t *method;
+  string_t *uri;
 } http_request_t;
 
-http_request_t parse_http(string_t *data);
+http_request_t *parse_http(arena_t *memory, string_t *data);
 
 #endif // !HTTP_H

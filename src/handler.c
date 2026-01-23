@@ -19,22 +19,27 @@ void handle_client(arena_t *memory, int client, string_t *root_dir) {
     return;
   }
   string_t *buffer = string_create_from_len(memory, nullptr, BUFFER_SIZE);
-  (void)read(client, buffer->data, BUFFER_SIZE - 1);
-  buffer->data[BUFFER_SIZE - 1] = '\0';
+  ssize_t length = read(client, buffer->data, BUFFER_SIZE - 1);
+  if (length <= 0) {
+    log_warn("Read 0 bytes from client.");
+    close(client);
+    return;
+  }
+  buffer->data[length] = '\0';
+  buffer->length = (size_t)length;
   printf("\nMessage recived: \"\n%s\n\"\n", buffer->data);
 
-  http_request_t request = parse_http(buffer);
-  log_trace("%s %s", request.method, request.uri);
+  http_request_t *request = parse_http(memory, buffer);
+  log_trace("%s %s", request->method->data, request->uri->data);
   string_t *filename;
   string_t *filepath;
-  if (request.uri_len == 1 && request.uri[0] == '/') {
+  if (request->uri->length == 1 && request->uri->data[0] == '/') {
     filename = string_create(memory, "index.html");
     filepath = get_safe_path(memory, root_dir, filename);
   } else {
-    filename = string_create(memory, request.uri);
+    filename = request->uri;
     filepath = get_safe_path(memory, root_dir, filename);
   }
-  free(request.uri);
 
   char *message;
   if (filepath != nullptr) {
