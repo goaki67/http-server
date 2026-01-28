@@ -12,7 +12,7 @@
 #include "string_utils.h"
 
 http_request_t *parse_http(arena_t *memory, string_t *data) {
-  state_enum state = STATE_METHOD;
+  http_state_enum state = STATE_METHOD;
   http_request_t *request =
       (http_request_t *)arena_alloc(memory, sizeof(http_request_t));
 

@@ -6,7 +6,6 @@
 #include "arena.h"
 #include "string_utils.h"
 
-/* should free uri */
 typedef struct {
   string_t *method;
   string_t *uri;
